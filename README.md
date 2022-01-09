@@ -25,7 +25,7 @@ Within the scope of this assignment, we are going to design a service with HTTP 
 - Receipt contains list of items with units sold, price and total price, as well as a grand total price of all items.
 - X reports contain revenue, count of each item sold, and number of closed receipts (on a given day).
 - Registration/Authorization is out of scope, all endpoints should be available for everyone.
-- UI and Concurancy are out of scope.
+- UI and Concurrency are out of scope.
 - Use [SQLite](https://docs.python.org/3/library/sqlite3.html)) for persistence.
 - Use [FastAPI](https://fastapi.tiangolo.com/) as a web framework.
 
@@ -74,3 +74,10 @@ ignore = E501,W503
 ## Disclaimer
 
 We reserve the right to penalize you for violating well-known software principles that you covered in previous courses such as decomposition or DRY. We sincerely ask you to not make a mess of your code.
+
+Keep python conventions in mind:
+  - variable_name
+  - function_name
+  - ClassName
+  - CONSTANT_NAME
+  - file_name.py

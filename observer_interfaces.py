@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import List
 
 
 class Observer(ABC):
     @abstractmethod
-    def update(self, subject: Subject) -> None:
+    def update(self, subject: Subject) -> List[tuple[str, int]]:
         pass
 
 
@@ -20,10 +21,6 @@ class Subject(ABC):
 
     @abstractmethod
     def notify(self) -> None:
-        pass
-
-    @abstractmethod
-    def print_x_report(self) -> None:
         pass
 
     @abstractmethod

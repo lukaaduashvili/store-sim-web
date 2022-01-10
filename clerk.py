@@ -1,33 +1,31 @@
 from typing import List
 
 from item import Item
-from observer_interfaces import Observer, Subject
-from receipt import Receipt
+from manager import Manager
+from receipt import ManagerReceipt, Receipt
 
 
-class Clerk(Subject):
+class Clerk:
     def __init__(self) -> None:
-        self.observers: List[Observer] = []
-        self.receipt = Receipt()
+        self.receipt: Receipt = Receipt()
+        self.m_receipt: ManagerReceipt = ManagerReceipt()
 
-    def attach(self, observer: Observer) -> None:
-        self.observers.append(observer)
+    # def attach(self, observer: Observer) -> None:
+    #     self.observers.append(observer)
+    #
+    # def detach(self, observer: Observer) -> None:
+    #     self.observers.remove(observer)
+    #
+    # def notify(self) -> None:
+    #     for observer in self.observers:
+    #         observer.update(self)
 
-    def detach(self, observer: Observer) -> None:
-        self.observers.remove(observer)
-
-    def notify(self) -> None:
-        for observer in self.observers:
-            observer.update(self)
-
-    def add_item(self, item: Item) -> None:
+    def add_item(self, item: Item, manager: Manager) -> None:
         self.receipt.add_item(item)
+        manager.receipt.add_item(item)
 
     def sum_of_prices(self) -> float:
         return self.receipt.get_price()
-
-    def print_x_report(self) -> None:
-        pass
 
     def close_cashier(self) -> None:
         self.receipt = Receipt()

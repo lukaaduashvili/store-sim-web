@@ -24,6 +24,7 @@ class ManagerReceipt:
     def __init__(self) -> None:
         self.all_items: dict[str, int] = dict()
         self.total_sum: float = 0
+        self.num_receipts: int = 0
 
     def add_item(self, item: Item) -> None:
         if item.name in self.all_items:
@@ -44,3 +45,9 @@ class ManagerReceipt:
 
     def get_final_revenue(self) -> float:
         return self.total_sum
+
+    def add_count(self) -> None:
+        self.num_receipts += 1
+
+    def get_receipts(self) -> int:
+        return self.num_receipts

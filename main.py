@@ -12,6 +12,8 @@ from item import FourPackFactory, Item, SingleItemFactory, SixPackFactory
 from manager import Manager
 from product_db import ProductDb
 
+DB_ADDRESS: str = "products"
+
 app = FastAPI()
 clerk: ContextVar[Clerk] = ContextVar("clk")
 clerk.set(Clerk())
@@ -26,6 +28,7 @@ app.add_middleware(SessionMiddleware, secret_key="clerk")
 @app.get("/", response_class=HTMLResponse)
 async def root() -> str:
     db: ProductDb = ProductDb()
+    db.set_db_address(DB_ADDRESS)
     head: str = """<html>
         <head>
             <title>Some HTML in here</title>
@@ -133,7 +136,7 @@ async def process_clerk() -> str:
             + "</li>"
         )
     body += "</ul>"
-    clerk.get().close_cashier()
+    clerk.get().close_cashier(manager.get())
     body += "<a href = '/'>Pay with card</a>"
     body += "<a href = '/'>Pay with cash</a>"
     return head + body + end
@@ -151,7 +154,7 @@ async def process_manager() -> str:
         """
     tot_rev: str = str(manager.get().get_total_revenue())
     body += "<ul>"
-    clerk.get().close_cashier()
+    clerk.get().close_cashier(manager.get())
     for pair in manager.get().generate_x_report():
         body += "<li>Name: " + pair[0]
         body += " Count: " + str(pair[1]) + "</li>"

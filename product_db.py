@@ -1,13 +1,19 @@
 import datetime
 import sqlite3
-from typing import List
+from typing import Any, List
 
 from singleton import Singleton
 
 
 class ProductDb(metaclass=Singleton):
+    DB_ADDRESS: str = "products"
+
     def __init__(self) -> None:
-        self.con = sqlite3.connect("products")
+        self.con: Any = None
+        self.cur: Any = None
+
+    def set_db_address(self, db_address: str) -> None:
+        self.con = sqlite3.connect(db_address)
         self.cur = self.con.cursor()
         self.cur.execute(
             """CREATE TABLE IF NOT EXISTS prices
@@ -22,7 +28,7 @@ class ProductDb(metaclass=Singleton):
 
         self.cur.execute(
             """CREATE TABLE IF NOT EXISTS reports
-                            (rep_time date, revenue float)"""
+                            (rep_time date, revenue float, rec_cnt int)"""
         )
 
         self.cur.execute(
@@ -32,10 +38,12 @@ class ProductDb(metaclass=Singleton):
 
         self.con.commit()
 
-    def add_report(self, items: List[tuple[str, int]], total_rev: float) -> None:
+    def add_report(
+        self, items: List[tuple[str, int]], total_rev: float, cnt: int
+    ) -> None:
         self.cur.execute(
-            "INSERT OR IGNORE INTO reports VALUES(?, ?)",
-            (datetime.datetime.now(), total_rev),
+            "INSERT OR IGNORE INTO reports VALUES(?, ?, ?)",
+            (datetime.datetime.now(), total_rev, cnt),
         )
         self.con.commit()
         res = self.cur.execute("SELECT COUNT(*) FROM reports")
@@ -50,7 +58,7 @@ class ProductDb(metaclass=Singleton):
 
     def get_item_list(self) -> List[tuple[str, float]]:
         self.cur.execute("SELECT * FROM prices ORDER BY price")
-        res = self.cur.fetchall()
+        res: List[tuple[str, float]] = self.cur.fetchall()
         return res
 
     def add_item(self, p_name: str, p_price: float) -> None:

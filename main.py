@@ -1,165 +1,88 @@
 from contextvars import ContextVar
+from typing import List
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import RedirectResponse
-from starlette.status import HTTP_302_FOUND, HTTP_404_NOT_FOUND
+from starlette import status
+from starlette.responses import Response
 
-import main
 from clerk import Clerk
 from item import FourPackFactory, Item, SingleItemFactory, SixPackFactory
 from manager import Manager
 from product_db import ProductDb
+from report_x import ReportX
 
 DB_ADDRESS: str = "products"
 
 app = FastAPI()
-clerk: ContextVar[Clerk] = ContextVar("clk")
-clerk.set(Clerk())
 manager: ContextVar[Manager] = ContextVar("mng")
 manager.set(Manager())
-oif: SingleItemFactory = SingleItemFactory()
-tif: FourPackFactory = FourPackFactory()
-sif: SixPackFactory = SixPackFactory()
-app.add_middleware(SessionMiddleware, secret_key="clerk")
+db: ProductDb = ProductDb()
+db.set_db_address(DB_ADDRESS)
+clerk: Clerk = Clerk()
 
 
-@app.get("/", response_class=HTMLResponse)
-async def root() -> str:
-    db: ProductDb = ProductDb()
-    db.set_db_address(DB_ADDRESS)
-    head: str = """<html>
-        <head>
-            <title>Some HTML in here</title>
-        </head>"""
-    end: str = """</html>"""
-    body: str = """
-    <body>
-    """
-    cnt: int = 0
-    for row in db.get_item_list():
-        name: str = row[0]
-        body += '<form method = "get" action = "/add_item/' + name + '">\n'
-        cnt += 1
-        body += (
-            "<button type = 'submit' name = 'action' value = '1'>"
-            + "Name: "
-            + name
-            + " Price: "
-            + str(row[1])
-            + " Count: 1"
-            + " </button>\n"
-        )
-        body += (
-            "<button type = 'submit' name = 'action' value = '4'>"
-            + "Name: "
-            + name
-            + " Price: "
-            + str(row[1])
-            + " Count: 4"
-            + " </button>\n"
-        )
-        body += (
-            "<button type = 'submit' name = 'action' value = '6'>"
-            + "Name: "
-            + name
-            + " Price: "
-            + str(row[1])
-            + " Count: 6"
-            + " </button>\n"
-        )
-        body += "</form> \n"
-
-    body += '<a href = "/ClerkPage">Process new client</a>\n'
-    body += '<a href = "/ManagerPage">Generate report X</a>'
-    body += "<ul>"
-    for item in clerk.get().get_customer_items():
-        body += (
-            "<li>"
-            + "Name: "
-            + item.name
-            + " Price: "
-            + str(item.price * item.amount)
-            + " Amount: "
-            + str(item.amount)
-            + "</li>"
-        )
-
-    body += "</ul>"
-    body += "<p>" + "Current price sum: " + str(clerk.get().sum_of_prices()) + "</p>"
-    body += "</body>"
-
-    return head + body + end
-
-
-@main.app.get("/add_item/{item_name}", response_class=HTMLResponse)
-async def add_item(item_name: str, action: int = 1) -> RedirectResponse:
-    item: Item
-    if action == 1:
-        item = main.oif.create_product(item_name)
-        clerk.get().add_item(item, manager.get())
-    elif action == 4:
-        item = main.tif.create_product(item_name)
-        clerk.get().add_item(item, manager.get())
-    elif action == 6:
-        item = main.sif.create_product(item_name)
-        clerk.get().add_item(item, manager.get())
+@app.put("/add_item/{item_name, item_price, item_amount}", status_code=200)
+async def add_item(
+    item_name: str, item_price: float, item_amount: int, response: Response
+) -> str:
+    if item_price > 0:
+        db.add_item(item_name, item_price, item_amount)
+        response.status_code = status.HTTP_201_CREATED
+        return "Item added"
     else:
-        response = RedirectResponse(url="/", status_code=HTTP_404_NOT_FOUND)
-        return response
-    response = RedirectResponse(url="/", status_code=HTTP_302_FOUND)
-    return response
+        response.status_code = status.HTTP_206_PARTIAL_CONTENT
+        return "Item cant have negative price"
 
 
-@main.app.get("/ClerkPage", response_class=HTMLResponse)
-async def process_clerk() -> str:
-    head: str = """<html>
-           <head>
-               <title>Some HTML in here</title>
-           </head>"""
-    end: str = """</html>"""
-    body: str = """
-       <body>
-       """
-
-    body += "<ul>"
-    for item in clerk.get().get_customer_items():
-        body += (
-            "<li>"
-            + "Name: "
-            + item.name
-            + " Price: "
-            + str(item.price * item.amount)
-            + " Amount: "
-            + str(item.amount)
-            + "</li>"
-        )
-    body += "</ul>"
-    clerk.get().close_cashier(manager.get())
-    body += "<a href = '/'>Pay with card</a>"
-    body += "<a href = '/'>Pay with cash</a>"
-    return head + body + end
+@app.post("/open_receipt", status_code=200)
+async def open_client_receipt(response: Response) -> str:
+    res: bool = clerk.begin_serving_client()
+    if res:
+        response.status_code = status.HTTP_200_OK
+        return "Clerk started serving successfully"
+    response.status_code = status.HTTP_400_BAD_REQUEST
+    return "Clerk is busy close previous receipt"
 
 
-@main.app.get("/ManagerPage", response_class=HTMLResponse)
-async def process_manager() -> str:
-    head: str = """<html>
-            <head>
-                <title>Some HTML in here</title>
-            </head>"""
-    end: str = """</html>"""
-    body: str = """
-        <body>
-        """
-    tot_rev: str = str(manager.get().get_total_revenue())
-    body += "<ul>"
-    clerk.get().close_cashier(manager.get())
-    for pair in manager.get().generate_x_report():
-        body += "<li>Name: " + pair[0]
-        body += " Count: " + str(pair[1]) + "</li>"
-    body += "</ul>"
-    body += "<p>Total Revenue: " + tot_rev + "$</p>"
-    body += "<a href = />Process new client</a>"
-    body += "<body>"
-    return head + body + end
+@app.post("/add_item/{item_name, item_amount}", status_code=200)
+async def add_client_item(item_name: str, item_amount: int, response: Response) -> str:
+    if db.contains_item(item_name, item_amount):
+        item: Item = Item()
+        item.name = item_name
+        item.amount = item_amount
+        item.price = db.get_item_price(item.name, item.amount)
+        res: bool = clerk.add_item(item, manager.get())
+        if res:
+            response.status_code = status.HTTP_200_OK
+            return "Item added successfully"
+
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return "No client to serve, please open cash register"
+    else:
+        return "Store doesnt sell " + item_name + " in packs of" + str(item_amount)
+
+
+@app.get("/get_current_receipt", status_code=200)
+async def get_current_receipt() -> tuple[List[Item], float]:
+    return clerk.receipt.get_info()
+
+
+@app.post("/pay", status_code=200)
+async def client_pay(response: Response) -> str:
+    res: bool = clerk.close_cashier(manager.get())
+    if res:
+        response.status_code = status.HTTP_200_OK
+        return "Client paid closing current receipt"
+    response.status_code = status.HTTP_400_BAD_REQUEST
+    return "Receipt is not open client can not pay"
+
+
+@app.post("/report_x", status_code=200)
+async def report_x() -> str:
+    manager.get().generate_x_report()
+    return "Report Successfully generated"
+
+
+@app.get("/get_report", status_code=200)
+async def get_latest_report() -> ReportX:
+    return db.get_last_report()

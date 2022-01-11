@@ -16,32 +16,32 @@ class AbstractFactory(metaclass=Singleton):
     productDb = ProductDb()
 
     @abstractmethod
-    def create_product(self, name: str) -> Item:
+    def create_product(self, name: str, price: float) -> Item:
         pass
 
 
 class SingleItemFactory(AbstractFactory):
-    def create_product(self, name: str) -> Item:
+    def create_product(self, name: str, price: float) -> Item:
         itm = Item()
         itm.amount = 1
-        itm.price = self.productDb.get_item_price(name)
+        itm.price = price
         itm.name = name
         return itm
 
 
 class FourPackFactory(AbstractFactory):
-    def create_product(self, name: str) -> Item:
+    def create_product(self, name: str, price: float) -> Item:
         itm = Item()
         itm.amount = 4
-        itm.price = self.productDb.get_item_price(name)
+        itm.price = price
         itm.name = name
         return itm
 
 
 class SixPackFactory(AbstractFactory):
-    def create_product(self, name: str) -> Item:
+    def create_product(self, name: str, price: float) -> Item:
         itm = Item()
         itm.amount = 6
-        itm.price = self.productDb.get_item_price(name)
+        itm.price = price
         itm.name = name
         return itm

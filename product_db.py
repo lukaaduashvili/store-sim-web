@@ -2,6 +2,7 @@ import datetime
 import sqlite3
 from typing import Any, List
 
+from report_x import ReportItem, ReportX
 from singleton import Singleton
 
 
@@ -17,15 +18,8 @@ class ProductDb(metaclass=Singleton):
         self.cur = self.con.cursor()
         self.cur.execute(
             """CREATE TABLE IF NOT EXISTS prices
-                       (name text, price real, UNIQUE(name))"""
+                       (name text, price real, pack_size int)"""
         )
-        self.cur.execute("INSERT OR IGNORE INTO prices VALUES ('Apple', 1.25)")
-        self.cur.execute("INSERT OR IGNORE INTO prices VALUES ('Banana', 2.5)")
-        self.cur.execute("INSERT OR IGNORE INTO prices VALUES ('Cucumber', 1.25)")
-        self.cur.execute("INSERT OR IGNORE INTO prices VALUES ('Beer', 2.5)")
-        self.cur.execute("INSERT OR IGNORE INTO prices VALUES ('Bread', 1.5)")
-        self.cur.execute("INSERT OR IGNORE INTO prices VALUES ('Milk', 1.5)")
-
         self.cur.execute(
             """CREATE TABLE IF NOT EXISTS reports
                             (rep_time date, revenue float, rec_cnt int)"""
@@ -38,6 +32,14 @@ class ProductDb(metaclass=Singleton):
 
         self.con.commit()
 
+    def contains_item(self, item_name: str, item_amount: int) -> bool:
+        self.cur.execute(
+            "SELECT COUNT(*) from prices WHERE name LIKE ? AND pack_size = ?",
+            (item_name, item_amount),
+        )
+        curr_id: int = self.cur.fetchall()[0][0]
+        return curr_id > 0
+
     def add_report(
         self, items: List[tuple[str, int]], total_rev: float, cnt: int
     ) -> None:
@@ -48,7 +50,6 @@ class ProductDb(metaclass=Singleton):
         self.con.commit()
         res = self.cur.execute("SELECT COUNT(*) FROM reports")
         rep_id: int = res.fetchall()[0][0]
-        print(rep_id)
         for row in items:
             self.cur.execute(
                 "INSERT OR IGNORE INTO report_items VALUES(?, ?, ?)",
@@ -56,18 +57,32 @@ class ProductDb(metaclass=Singleton):
             )
         self.con.commit()
 
-    def get_item_list(self) -> List[tuple[str, float]]:
-        self.cur.execute("SELECT * FROM prices ORDER BY price")
-        res: List[tuple[str, float]] = self.cur.fetchall()
-        return res
-
-    def add_item(self, p_name: str, p_price: float) -> None:
+    def add_item(self, p_name: str, p_price: float, p_amount: int) -> None:
         self.cur.execute(
-            "INSERT OR IGNORE INTO prices values (?, ?)", (p_name, p_price)
+            "INSERT OR IGNORE INTO prices values (?, ?, ?)", (p_name, p_price, p_amount)
         )
         self.con.commit()
 
-    def get_item_price(self, p_name: str) -> float:
-        self.cur.execute("SELECT price from prices WHERE name like ?", (p_name,))
+    def get_item_price(self, p_name: str, p_amount: int) -> float:
+        self.cur.execute(
+            "SELECT price from prices WHERE name LIKE ? AND pack_size = ?",
+            (p_name, p_amount),
+        )
         row = self.cur.fetchall()
         return float(row[0][0])
+
+    def get_last_report(self) -> ReportX:
+        self.cur.execute(
+            "SELECT COUNT(*) from reports",
+        )
+        r_id: int = self.cur.fetchall()[0][0]
+        query = self.cur.execute("SELECT * from reports WHERE rowid = ?", (r_id,))
+        res1 = query.fetchall()
+
+        query = self.cur.execute("SELECT * from report_items WHERE rep_id = ?", (r_id,))
+        res2 = query.fetchall()
+        temp_list: List[ReportItem] = []
+        for i in range(len(res2)):
+            temp_list.append(ReportItem(res2[i][1], res2[i][2]))
+        report: ReportX = ReportX(res1[0][0], res1[0][1], res1[0][2], temp_list)
+        return report

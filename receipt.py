@@ -19,6 +19,9 @@ class Receipt:
     def get_items(self) -> List[Item]:
         return self.items
 
+    def get_info(self) -> tuple[List[Item], float]:
+        return self.items, self.get_price()
+
 
 class ManagerReceipt:
     def __init__(self) -> None:
